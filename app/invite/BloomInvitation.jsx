@@ -149,7 +149,7 @@ function PetalCanvas({ enabled, burstKey }) {
   return <canvas ref={canvasRef} className="petal-canvas" aria-hidden="true" />;
 }
 
-function ScratchCard({ onReveal, event, coupleNames }) {
+function ScratchCard({ onReveal, event, coupleNames, guestName }) {
   const canvasRef = useRef(null);
   const drawing = useRef(false);
   const scratchMoveCount = useRef(0);
@@ -190,7 +190,7 @@ function ScratchCard({ onReveal, event, coupleNames }) {
     if (scratchMoveCount.current % 3 === 0) revealIfCleared();
   };
   return <div className={`scratch ${revealed ? 'revealed' : ''}`}>
-    <span className="k">THE {event?.title?.toUpperCase() || "WEDDING"} OF {coupleNames.toUpperCase()}</span><strong className="d">{event ? formatDate(event.rawDate, { day: "numeric", month: "long", year: "numeric" }) : "Date to be announced"}</strong><span className="dd">{event ? formatDate(event.rawDate, { weekday: "long" }) : ""}</span><span className="t">{event?.time || ""}{event?.venue ? ` · ${event.venue}` : ""}</span>
+    <span className="k">{guestName ? `INVITATION FOR ${guestName.toUpperCase()}` : `THE ${event?.title?.toUpperCase() || "WEDDING"} OF ${coupleNames.toUpperCase()}`}</span><strong className="d">{event ? formatDate(event.rawDate, { day: "numeric", month: "long", year: "numeric" }) : "Date to be announced"}</strong><span className="dd">{event ? formatDate(event.rawDate, { weekday: "long" }) : ""}</span><span className="t">{event?.time || ""}{event?.venue ? ` · ${event.venue}` : ""}</span>
     {!revealed && <canvas ref={canvasRef} aria-label="Scratch to reveal the wedding date" onPointerDown={(e) => { drawing.current = true; e.currentTarget.setPointerCapture(e.pointerId); scratch(e); }} onPointerMove={scratch} onPointerUp={() => { drawing.current = false; revealIfCleared(); }} onPointerCancel={() => { drawing.current = false; revealIfCleared(); }} />}
     {!revealed && <button type="button" className="scratch-reveal" onClick={() => { setRevealed(true); onReveal(); }}>Tap to reveal date</button>}
   </div>;
@@ -331,7 +331,17 @@ export default function BloomInvitation({ wedding, guest, familyMembers = [] }) 
         ? <video ref={videoRef} id="openVideo" className="cover-video" src={openerVideoUrl} poster={asset('images/opener-poster.jpg')} muted playsInline preload="auto" />
         : <img id="openVideo" className="cover-video" src={asset('images/opener-poster.jpg')} alt="" aria-hidden="true" />}</div>
       <span className="bud-halo" aria-hidden="true"><i /><i /></span>
-      <div className="cover-title"><p>THE WEDDING OF</p><h2>{coupleNames}</h2></div>
+      <div className="cover-title">
+        <p>THE WEDDING OF</p>
+        <h2>{coupleNames}</h2>
+        {guest?.name && (
+          <div className="guest-reveal">
+            <span>YOU ARE CORDIALLY INVITED</span>
+            <strong>Dear {guest.name}</strong>
+            <small>We would love to celebrate with you</small>
+          </div>
+        )}
+      </div>
       <p className="cover-hint"><span>TAP THE BUD TO OPEN</span></p>
       <button type="button" className="skip" onClick={(e) => { e.stopPropagation(); openInvitation(); }}>SKIP ›</button>
     </div>}
@@ -360,13 +370,41 @@ export default function BloomInvitation({ wedding, guest, familyMembers = [] }) 
           <p className="nm">{brideName}</p>
           <p className="body">Your presence and prayers would make<br />our celebration complete.</p>
         </Reveal>
+
+        {familyMembers.length > 0 && (
+          <Reveal className="family-section">
+            <p className="eyebrow">OUR BELOVED FAMILIES</p>
+            <h2 className="h2">Together With Our Families</h2>
+            <Divider />
+            <div className="family-grid">
+              {familyMembers.map((member) => (
+                <article className="family-card" key={member.id}>
+                  {member.profile_image ? (
+                    <img
+                      src={member.profile_image}
+                      alt={`${member.name || 'Family member'} portrait`}
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="family-placeholder" aria-hidden="true">
+                      {(member.name || '?').trim().charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <h3>{member.name || 'Family Member'}</h3>
+                  {member.role && <p>{member.role}</p>}
+                </article>
+              ))}
+            </div>
+          </Reveal>
+        )}
+
         <Reveal className="swag"><img src={asset('images/garland-band.webp')} alt="" /></Reveal>
         <Ornament className="corner tl" src="flower.webp" /><Ornament className="corner br" src="flower.webp" />
       </section>
 
       <section className="sec frame" id="save-date">
         <Reveal><p className="eyebrow">THE MOST SPECIAL DAY</p><h2 className="h2">Save the Date</h2><Divider /><p className="p">Scratch the card to reveal the date</p></Reveal>
-        <Reveal className="scard-wrap"><ScratchCard onReveal={petalBurst} event={mainEvent} coupleNames={coupleNames} /></Reveal>
+        <Reveal className="scard-wrap"><ScratchCard onReveal={petalBurst} event={mainEvent} coupleNames={coupleNames} guestName={guest?.name} /></Reveal>
         <Reveal className="btns">{mainEvent && <CalendarButton event={mainEvent} coupleNames={coupleNames} />}</Reveal>
         <Ornament className="corner tr" src="flower.webp" /><Ornament className="corner bl lean" src="sprig.webp" />
       </section>
@@ -405,5 +443,92 @@ export default function BloomInvitation({ wedding, guest, familyMembers = [] }) 
     <button type="button" className={`music ${playing ? 'playing' : ''}`} id="musicBtn" aria-label={playing ? 'Pause background music' : 'Play background music'} onClick={toggleMusic}><span aria-hidden="true">{playing ? '♫' : '♪'}</span></button>
     <audio ref={musicRef} id="music" src={asset('audio/music.mp3')} preload="none" loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
     {musicNotice && <div className="qq-note" aria-live="polite">{musicNotice}</div>}
+
+    <style jsx>{`
+      .guest-reveal {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 7px;
+        margin-top: 22px;
+        animation: guestReveal 1s ease both;
+        text-align: center;
+      }
+      .guest-reveal span {
+        color: #d8c7a6;
+        font-size: 9px;
+        letter-spacing: 3px;
+      }
+      .guest-reveal strong {
+        color: #fff0d4;
+        font-family: 'Cormorant Garamond', serif;
+        font-size: clamp(25px, 5vw, 38px);
+        font-weight: 500;
+      }
+      .guest-reveal small {
+        color: rgba(255,255,255,.75);
+        font-size: 11px;
+      }
+      .family-section {
+        width: min(100% - 32px, 750px);
+        margin: 0 auto;
+        padding: 45px 0;
+        text-align: center;
+      }
+      .family-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px 16px;
+        margin-top: 30px;
+      }
+      .family-card {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .family-card img,
+      .family-placeholder {
+        width: 105px;
+        height: 105px;
+        border: 2px solid #d8c7a6;
+        border-radius: 50%;
+        object-fit: cover;
+        padding: 3px;
+      }
+      .family-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #eee2c9;
+        color: #806747;
+        font-size: 32px;
+      }
+      .family-card h3 {
+        margin: 0;
+        color: #806747;
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 20px;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+      }
+      .family-card p {
+        margin: 0;
+        color: #927c60;
+        font-size: 12px;
+      }
+      @keyframes guestReveal {
+        from { opacity: 0; transform: translateY(15px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @media (max-width: 380px) {
+        .family-card img,
+        .family-placeholder {
+          width: 85px;
+          height: 85px;
+        }
+      }
+    `}</style>
   </>;
 }
